@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hybrid Query App</title>
+</head>
+<body>
+    <h1>Hybrid Query App</h1>
+
+    <!-- Text Query Form -->
+    <form id="text-form">
+        <h2>Text Query</h2>
+        <input type="text" id="text-input" placeholder="Enter text query">
+        <button type="submit">Search</button>
+    </form>
+
+    <!-- Image Query Form -->
+    <form id="image-form" enctype="multipart/form-data">
+        <h2>Image Query</h2>
+        <input type="file" id="image-upload" accept="image/*">
+        <button type="submit">Search</button>
+    </form>
+    
+
+    <!-- Hybrid Query Form -->
+    <form id="hybrid-form" enctype="multipart/form-data">
+        <h2>Hybrid Query</h2>
+        <input type="text" id="hybrid-text" placeholder="Enter text query">
+        <input type="file" id="hybrid-image-upload" accept="image/*">
+        <input type="range" id="lam" min="0" max="1" step="0.1" value="0.5">
+        <button type="submit">Search</button>
+    </form>
+    
+
+    <!-- Results Section -->
+    <div id="results" style="margin-top: 20px;">
+        <!-- Results will be displayed here -->
+    </div>
+
+    <script>
+        async function handleFormSubmit(formId, url, body) {
+            const form = document.getElementById(formId);
+            form.onsubmit = async (e) => {
+                e.preventDefault();
+                const formData = await body();
+
+                const response = await fetch(url, {
+                    method: "POST",
+                    body: formData,
+                });
+
+                const results = await response.json();
+                displayResults(results);
+            };
+        }
+
+        async function getUploadedFileAsBase64(inputId) {
+            const fileInput = document.getElementById(inputId);
+            const file = fileInput.files[0];
+            if (!file) return null;
+
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result.split(",")[1]); // Base64-encoded string
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function displayResults(results) {
+            const resultsDiv = document.getElementById("results");
+            resultsDiv.innerHTML = results
+                .map(
+                    (res) =>
+                        `<div style="margin-bottom: 20px;">
+                            <p><strong>File:</strong> ${res.file_name}</p>
+                            <p><strong>Similarity:</strong> ${res.similarity.toFixed(3)}</p>
+                            <img src="${res.image_url}" alt="${res.file_name}" width="200">
+                        </div>`
+                )
+                .join("");
+        }
+
+        handleFormSubmit("text-form", "/search", async () => {
+            const formData = new FormData();
+            formData.append("query_type", "text");
+            formData.append("text", document.getElementById("text-input").value);
+            return formData;
+        });
+
+        handleFormSubmit("image-form", "/search", async () => {
+            const imageBase64 = await getUploadedFileAsBase64("image-upload");
+            const formData = new FormData();
+            formData.append("query_type", "image");
+            formData.append("image_base64", imageBase64);
+            return formData;
+        });
+
+        handleFormSubmit("hybrid-form", "/search", async () => {
+            const imageBase64 = await getUploadedFileAsBase64("hybrid-image-upload");
+            const formData = new FormData();
+            formData.append("query_type", "hybrid");
+            formData.append("text", document.getElementById("hybrid-text").value);
+            formData.append("image_base64", imageBase64);
+            formData.append("lam", document.getElementById("lam").value);
+            return formData;
+        });
+
+    </script>
+</body>
+</html>
